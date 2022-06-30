@@ -1,0 +1,126 @@
+#!/usr/bin/python3
+
+import sys
+import os
+from  math import pi
+from numpy import sin, array, zeros, arange
+import operator
+
+
+program = sys.argv[0].split("/")[-1]
+
+if len(sys.argv) < 4:
+    print("Calculate the static structure factor by numerically Fourier transforming g(r) up to L/2.")
+    print("Usage: %s <q_start> <q_final> <density> [<cutoff>]" %program)
+    print("The optional fourth argument specifies an alternative upper cutoff for the integration")
+    exit(1)
+
+if len(sys.argv) == 5:
+    cutoff = float(sys.argv[4])
+else:
+    cutoff = None
+
+if not os.path.exists("rdf.dat"):
+    raise ValueError("rdf.dat does not exist. Run rumd_rdf 1000 1.0 first.")
+
+
+rdffile = open("rdf.dat")
+nextLine = rdffile.readline()
+if nextLine.startswith("#"):
+    concentrations = [float(x) for x in nextLine.split()[2:]]
+    nextLine = rdffile.readline()
+else:
+    concentrations = None
+
+
+rdf_list = []
+found_cutoff = False
+while nextLine:
+    rdf_list.append([float(x) for x in nextLine.split()])
+    r = rdf_list[-1][0]
+    if cutoff is not None and not found_cutoff and r > cutoff:
+        cut_size = len(rdf_list)
+        found_cutoff = True
+    nextLine = rdffile.readline()
+
+rdf_array = array(rdf_list)
+
+q_start = float(sys.argv[1]);
+q_final = float(sys.argv[2]);
+
+rho = float(sys.argv[3]);
+
+
+if cutoff is not None and found_cutoff:
+    Lh = cut_size
+else:
+    Lh = int(round(rdf_array.shape[0]/2.))
+nCols = rdf_array.shape[1]
+ds = (q_final-q_start)/Lh
+q_range = arange(q_start,q_final, ds)
+Lq = len(q_range)
+
+rh = rdf_array[:Lh,0]
+dr = rh[1] - rh[0]    # Delta r assumes constant equidistant spacing
+
+if concentrations is None:
+    nSpecies = int(sqrt(nCols-1))
+else:
+    nSpecies = len(concentrations)
+    assert nCols == 1+nSpecies**2
+
+
+column_dict = {}
+labels = []
+for i in range(nSpecies):
+    for j in range(i, nSpecies):
+        labels.append((i,j))
+        column_dict[(i,j)] = 1+nSpecies*i+j
+
+
+g_array_dict = {}
+Sq_array_dict = {}
+qmax_dict = {}
+
+for label in labels:
+    g_array_dict[label] = rdf_array[:Lh,column_dict[label]]
+    Sq_array_dict[label] = zeros(Lq)
+    
+
+for n in range(Lq):
+    q = q_start+ds*n # (n+1) to correspond with old rumd_sq (not correct)
+    common_factor = rh*(sin(q*rh)/q)*dr
+    for label in labels:
+        Sq_array_dict[label][n] = 1 + 4*pi*rho*sum((g_array_dict[label]-1.)*common_factor)
+        
+
+
+# write S(q) to file sq.dat
+sq_file = open("sq.dat","w")
+header = "# q"
+for label in labels:
+    header += " %d,%d" % label
+header += "\n"
+sq_file.write(header)
+for qdx in range(Lq):
+    lineOut = "%f" %q_range[qdx]
+    for label in labels:
+        lineOut += " %f" % Sq_array_dict[label][qdx]
+    lineOut += "\n"
+    sq_file.write(lineOut)
+    
+sq_file.close()
+
+
+# find maximum and write to qmax.dat
+for label in labels:
+    index, Sq_max = max(enumerate(Sq_array_dict[label]), key=operator.itemgetter(1))
+    qmax_dict[label] = q_range[index]
+
+
+
+print("Writing positions of peaks in Sq_AA to qmax.dat")
+qMaxFile = open("qmax.dat","w")
+for i in range(nSpecies):
+    qMaxFile.write("%f " % qmax_dict[(i,i)])
+    

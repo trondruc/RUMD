@@ -1,0 +1,90 @@
+#!/bin/bash -ei
+# Convert RUMD trajectory into a movie.
+
+idir=TrajectoryFiles
+opt_rumd_image="-W400"
+opt_ffmpeg=""
+oname=movie.mp4
+
+# Handle commandline options
+while getopts "hD:o:I:F:" opt;
+do
+    case $opt in
+        h)
+            echo ""
+            echo "  Convert RUMD trajectory into a movie."
+            echo ""
+            echo "Usage: $0 [-D TrajectoryFiles] [-o movie.mp4]"
+            echo ""
+            echo "  -h,         Print this help message."
+            echo "  -D Directory,"
+            echo "              Input directory with restart????.xyz.gz configuration files."
+            echo "                The default is TrajectoryFiles"
+            echo "  -o STR,     Name of output"
+            echo "                The default is movie.mp4"
+            echo "  -I OPT,     Options to the rumd_image command. See rumd_image -h for more."
+            echo '                The default is "-W400". This will generate a size of 400x300.'
+            echo "  -F OPT,     Outfile options to the ffmpeg command. See ffmpeg -h for more."
+            echo "                The default is blank."
+            echo ""
+            echo "Usage example:"
+            echo '  '$0' -D TrajectoryFiles -I"-W400" -o movie.mp4'
+            echo '  rm TrajectoryFiles/restart????.{pov,png}'
+            echo '  ffplay -loop 0 movie.mp4'
+            echo ""
+            echo "Dependencies: rumd_image, POV-ray [www.povray.org] and ffmpeg [www.ffmpeg.org]."
+            echo ""
+            exit 0
+            ;;
+        D)
+            idir=$OPTARG
+            ;;
+        o)
+            oname=$OPTARG
+            ;;
+        I)
+            opt_rumd_image=$OPTARG
+            ;;
+        F)
+            opt_ffmpeg=$OPTARG
+        ;;
+        \?)
+            echo "error: Invalid option: -$OPTARG" >&2
+            exit 1
+            ;;
+        :)
+            echo "error: Option -$OPTARG requires an argument. Use -h for usage help." >&2
+            exit 1
+            ;;
+    esac
+done
+
+# Some early tests
+if [ ! -d $idir ]; then
+    echo "error: Input directory $idir does not exist. Use -h for usage help." >&2
+    exit 1
+fi
+
+if [ -f $oname ]; then
+    echo This script refuse to overwrite the file $oname. Please delete, move or rename it.
+    exit 1
+fi
+
+# Use rumd_image configuration to images
+file_list=`ls ${idir}/restart????.xyz.gz`
+for file in $file_list;
+do
+    name="${file%%.*}"
+    echo Generate $name.png from configurations in $name with: rumd_image $cmd_rumd_image -P"-D" -i $file -o $name
+    rumd_image $opt_rumd_image -P"-D" -i $file -o $name
+done
+
+# Generate movie from images with ffmpeg
+echo Generate movie from png images with: ffmpeg -i ${idir}/restart%04d.png $opt_ffmpeg $oname
+ffmpeg -i ${idir}/restart%04d.png $opt_ffmpeg $oname
+
+# Write hints to user
+echo Clean-up after this script with:
+echo '  rm '$idir'/restart????.{pov,png}'
+echo Play the generated $oname with 
+echo '   ffplay -loop 0 ' $oname

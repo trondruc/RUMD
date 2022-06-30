@@ -1,0 +1,87 @@
+#!/usr/bin/python3
+"""script to compute autocorrelation functions of data in the energy files.
+
+A script that calculates autocorrelation functions of one or more
+columns from the energy output files, and saves them to
+'autocorrelations.dat.gz' or 'autocorrelations.dat'.
+"""
+
+import sys
+sys.path.insert(1, "/net/debye/nbailey/Software/rumd_devel/Python")
+
+import argparse
+import collections
+import time
+import rumd.analyze_energies as analyze
+
+time_0 = time.process_time()
+
+
+# Parse command-line arguments
+parser = argparse.ArgumentParser()
+parser.add_argument("-n", "--normalize",
+                    help="normalize the autocorrelation function(s)",
+                    action="store_true")
+parser.add_argument("-l", "--log_binning", type=float,
+                    help="do logarithmic data binning of the output")
+parser.add_argument("-w", "--write_fraction", type=float, default=0.01,
+                    help="the fraction of the output that is written to file")
+parser.add_argument("-c", "--column_name", nargs='+',
+                    help="names of columns to analyze")
+parser.add_argument("-d", "--directory", type=str, default="TrajectoryFiles",
+                        help="name of directory containing output files")
+parser.add_argument("-b", "--basename", type=str, default="energies",
+                    help="basename of output files, which then have names <basename>0000.gz etc.")
+parser.add_argument("-F", "--first_block", type=int, default=0,
+                    help="first block of trajectory to use for correlations")
+parser.add_argument("-L", "--last_block", type=int, default=-1,
+                    help="last block of trajectory to use for correlations")
+args = parser.parse_args()
+
+
+# Create analyze_energies object, read energy files
+directory = args.directory
+
+nrgs = analyze.AnalyzeEnergies(directory, energies_basefilename=args.basename, first_block=args.first_block, last_block=args.last_block)
+column_names = args.column_name
+if column_names is None:
+    column_names = nrgs.metadata['column_keys']
+nrgs.read_energies(column_names)
+
+
+# Calculate the length of the output
+length_data = len(nrgs.energies[column_names[0]])
+length = int(args.write_fraction * length_data)
+
+
+# Calculate output, start with first column
+output = collections.OrderedDict()
+name = column_names[0]
+t, c = nrgs.correlation_function(name, length=length, normalize=args.normalize)
+if args.log_binning is not None:
+    bins = analyze.create_logarithmic_bins(t[1], t[-1],
+                                           bins_per_decade=args.log_binning)
+    binned_t, binned_c = analyze.data_binning(t, c, bins)
+    output['time'] = binned_t
+    output[name] = binned_c
+else:
+    output['time'] = t
+    output[name] = c
+# Do the rest of the columns
+for name in column_names[1:]:
+    t, c = nrgs.correlation_function(name, length=length,
+                                     normalize=args.normalize)
+    if args.log_binning is not None:
+        binned_t, binned_c = analyze.data_binning(t, c, bins)
+        output[name] = binned_c
+    else:
+        output[name] = c
+
+
+# Save output to file
+if args.log_binning is None:
+    filename = "autocorrelations.dat.gz"
+else:
+    filename = "autocorrelations.dat"
+analyze.write_columns_to_file(filename, output)
+print("Done! rumd_autocorrelations,", time.process_time()-time_0, "seconds")

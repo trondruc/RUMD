@@ -1,0 +1,24 @@
+#!/usr/bin/python3
+
+"""
+Usage: rumd_set_linmol <nmol> <nuau> 
+"""
+
+import sys
+from rumd_init import init_mol_simplelin
+
+
+if ( len(sys.argv)!=3 or sys.argv[1] == "-h" \
+     or sys.argv[1] == "--help" ):
+    print(__doc__)
+    sys.exit(0)
+
+nmol = int(sys.argv[1])
+nuau = int(sys.argv[2])
+
+init_mol_simplelin(nmol, nuau)
+
+print("\n")
+print("Wrote mol.top \n")
+
+sys.exit(0)

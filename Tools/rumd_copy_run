@@ -1,0 +1,43 @@
+#!/bin/bash
+
+set -e
+
+if [ "$#" -ne "2" ]
+then
+	echo "Usage: $0 SOURCE-DIRECTORY DESTINATION-DIRECTORY"
+	echo "Make a copy of an existing simulation setup in SOURCE-DIRECTORY to DESTINATION-DIRECTORY"
+	echo "and use the final state as starting point for a new simulation in DESTINATION-DIRECTORY"
+	exit 1
+fi  
+
+SOURCE="$1"
+DESTINATION="$2"
+
+if [ ! -d "$SOURCE" ]
+then
+	echo error: "$SOURCE" is not a directory
+	exit 1
+fi
+
+if [ -e "$DESTINATION" ]
+then
+	echo error: "$DESTINATION" already exists
+	exit 1
+fi
+
+mkdir "$DESTINATION"
+
+if [ ! -f "$SOURCE"/end.xyz.gz ]
+then
+	echo warning: simulation in "$SOURCE" is incomplete, final state end.xyz.gz not found
+else
+	cp -v "$SOURCE"/end.xyz.gz "$DESTINATION"/start.xyz.gz 
+fi
+
+for f in run run.py run.pbs run.sh mol.top qvalues.dat
+do
+	if [ -e "$SOURCE"/"$f" ]
+	then
+		cp -v "$SOURCE"/"$f" "$DESTINATION"
+	fi
+done

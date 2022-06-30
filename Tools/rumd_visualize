@@ -1,0 +1,26 @@
+#!/bin/bash
+
+shopt -s failglob
+
+XYZDIR=$(mktemp --tmpdir --directory rumd_visualize.XXXXXXXXXX) && {
+
+echo -n "De-compressing xyz-files "
+for i in TrajectoryFiles/restart*.xyz.gz
+do
+  echo -n "."
+  zcat $i > "$XYZDIR"/"$(basename $i .gz)"
+done
+echo " done."
+
+vmdscript=$XYZDIR/vmdscript.vmd
+cat <<EOF >$vmdscript
+mol modstyle 0 0 VDW 0.40 24.0
+display projection orthographic
+EOF
+
+vmd -webhelper -e $vmdscript "$XYZDIR"/*.xyz
+
+echo -n "Removing uncompressed files ..."
+rm -r "$XYZDIR"
+echo " done."
+}

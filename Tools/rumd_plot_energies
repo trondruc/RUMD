@@ -1,0 +1,30 @@
+#!/bin/bash
+
+# Test whether any command-line argument is present (non-empty).
+if [ "$#" -lt "1" ] || [ $1 == "-h" ] || [ $1 == "--help" ]
+then
+    echo "Usage: $0 -bxy 0:3 [-bxy 32:4 ...]"
+    exit 1
+fi  
+
+# unique random temporary filename, cleaned up on exit from shell
+tmp_file=$(mktemp) || exit 1
+trap "rm -f -- '$tmp_file'" EXIT
+
+# display error if no energy files present
+shopt -s failglob
+zcat TrajectoryFiles/energies*.gz > "$tmp_file"
+
+if [ -s "$tmp_file" ]
+then
+    # show comment line
+    echo " "
+    head -n 1 "$tmp_file"
+
+    xmgrace -block "$tmp_file" "$@"
+fi
+
+rm -f -- "$tmp_file"
+trap - EXIT
+
+exit
