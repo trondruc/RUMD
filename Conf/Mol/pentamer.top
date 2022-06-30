@@ -1,0 +1,6 @@
+[ bonds ]
+; one linear molecule consisting of 5 particles (so four bonds)
+0 0 1 0 
+0 1 2 0 
+0 2 3 0
+0 3 4 0
