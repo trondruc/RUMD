@@ -1,0 +1,78 @@
+\begin{sidewaystable}
+
+  \advance\leftskip-3cm
+  \label{pot_list}
+  \caption{List of pair potentials implemented in RUMD.}
+  
+  \begin{tabular}{ | l | c | c | c | c | }
+    \hline
+    Name of Potential 
+    & \textbf{Definition} $v(r_{ij})$ 
+    & Parameters/Constants 
+    & SetParams 
+    & Name in code \\
+    \hline
+    Lennard--Jones (12,6) 
+    & $4\cdot \epsilon_{ij} \left\{ \left ( \frac{\sigma_{ij}}{r_{ij}} \right )^{12} - \left ( \frac{\sigma_{ij}}{r_{ij}} \right )^{6}  \right\} $
+    & $\epsilon_{ij}, \sigma_{ij} $ 
+    &  $(i, j, \sigma_{ij}, \epsilon_{ij}, R_{cut})$ 
+    & \verb=Pot_LJ_12_6= \\
+    Lennard--Jones (m,n) 
+    & $ \frac{\epsilon_{ij}}{(m - n)} \left\{ n \cdot\left ( \frac{\sigma_{ij}}{r_{ij}} \right )^{m} - m \cdot \left ( \frac{\sigma_{ij}}{r_{ij}} \right )^{n}  \right\} $
+    & $\epsilon_{ij}, \sigma_{ij}, m, n $ 
+    & $(i, j, \sigma_{ij}, \epsilon_{ij}, R_{cut})$ 
+    & \verb=Pot_gLJ_m_n= \\
+    Lennard--Jones (12,6) 
+    & $ \epsilon_{ij} \left\{ \left ( \frac{\sigma_{ij}}{r_{ij}} \right )^{12} - 2\cdot \left ( \frac{\sigma_{ij}}{r_{ij}} \right )^{6}  \right\} $
+    & $\epsilon_{ij}, \sigma_{ij} $ 
+    & $(i, j, \sigma_{ij}, \epsilon_{ij}, R_{cut})$ 
+    & \verb=Pot_gLJ_m12_n6= \\
+    Lennard--Jones Gaussian 
+    & $ \epsilon_{ij} \left\{ \left ( \frac{\sigma_{ij}}{r_{ij}} \right )^{12} - 2\left ( \frac{\sigma_{ij}}{r_{ij}} \right )^{6} 
+    - \epsilon_0 \cdot \exp\left[- \left ( \frac{r - r_0}{2 \cdot \sigma_0} \right ) ^2 \right] \right\}$ 
+    & $\epsilon_{ij}, \sigma_{ij}, \epsilon_0, \sigma_0, r_0$ 
+    & $(i, j, \sigma_{ij}, \epsilon_{ij}, R_{cut}, \epsilon_0, \sigma_0, r_0)$ 
+    & \verb=Pot_LJ_12_6_Gauss= \\
+    Gaussian core 
+    & $ \epsilon_{ij} \cdot \exp\left[ \left ( \frac{-r_{ij}}{\sigma_{ij} } \right ) ^2 \right]$
+    & $\epsilon_{ij}, \sigma_{ij}$ 
+    & $(i, j, \sigma_{ij}, \epsilon_{ij}, R_{cut})$ 
+    & \verb=Pot_Gauss= \\
+    Buckingham (exp,six) 
+    & $ \epsilon_{ij} \left\{ \frac{6}{(\alpha -6)}\exp \left[\alpha \left ( 1-\frac{r_{ij}}{r_m} \right ) \right] - \frac{\alpha}{(\alpha -6)}\left ( \frac{r_m}{r_{ij}} \right )^{6} \right\} $
+    & $\epsilon_{ij}, r_m, \alpha $ 
+    &  $(i, j, r_m, \epsilon_{ij}, R_{cut})$ 
+    & \verb=Pot_Buckingham= \\
+    Inverse Power Law, n = 12 
+    & $\epsilon_{ij} \left ( \frac{\sigma_{ij}}{r_{ij}} \right ) ^{12}  $
+    & $\epsilon_{ij}, \sigma_{ij} $ 
+    & $(i, j, \sigma_{ij}, \epsilon_{ij},  R_{cut})$ 
+    & \verb=Pot_IPL_12= \\
+    Inverse Power Law, n = 18 
+    & $\epsilon_{ij} \left ( \frac{\sigma_{ij}}{r_{ij}} \right ) ^{18}  $
+    & $\epsilon_{ij}, \sigma_{ij} $ 
+    & $(i, j, \sigma_{ij}, \epsilon_{ij},  R_{cut})$ 
+    & \verb=Pot_IPL_18= \\
+    Inverse Power Law, arbitrary n
+    & $\epsilon_{ij} \left ( \frac{\sigma_{ij}}{r_{ij}} \right ) ^{n}  $
+    & $\epsilon_{ij}, \sigma_{ij}, n $ 
+    & $(i, j, \sigma_{ij}, \epsilon_{ij},  R_{cut}, n)$ 
+    & \verb=Pot_IPL_n= \\
+    IPL6/LN
+    & $\epsilon_{ij} \left( \frac{\sigma_{ij}}{r_{ij}} \right) ^{6}  \ln \left( \frac{r_{ij}}{\sigma_{ij}} \right) ^{-1}   $
+    & $\epsilon_{ij}, \sigma_{ij} $ 
+    & $(i, j, \sigma_{ij}, \epsilon_{ij},  R_{cut})$ 
+    & \verb=Pot_IPL6_LN= \\
+    Dzugutov 
+    & $ A \cdot \Big( r^{-n} - B \Big) exp\Big( \frac{c}{r_{ij} - a} \Big) +  B \cdot exp\Big( \frac{d}{r_{ij}-b}\Big) $
+    & $A, B, a, b, c, d$ 
+    & $(i, j, A, B, a, b, c ,d)$ 
+    & \verb=Pot_Dzugutov=\\
+    Shifted-force Coulomb
+    & $\epsilon_{ij}/r_{ij} \textrm{[+force-shifting term]}$
+    & $\epsilon_{ij}$
+    & $(i, j, \epsilon_{ij}, R_{cut})$
+    & \verb=Pot_ShiftedForceCoulomb=\\
+    \hline
+  \end{tabular}
+\end{sidewaystable}

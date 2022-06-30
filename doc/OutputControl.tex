@@ -1,0 +1,469 @@
+\documentclass[a4paper]{article}
+
+\setlength{\textwidth}{16 cm}
+\setlength{\oddsidemargin}{-1 cm}
+
+\usepackage{verbatim}
+
+\title{Controlling data output in RUMD (C++ interface)}
+\author{Nicholas Bailey}
+
+
+\begin{document}
+
+\maketitle
+
+\section{For the new/basic user}
+
+
+
+\subsection{Basic output structure}
+
+\begin{itemize}
+\item A simulation run is divided into ``blocks'', whose size (number of time 
+steps) is typically chosen so that there are of order 100-1000 blocks.
+\item The Sample object maintains a list of ``output managers'', each of which
+specializes in a certain kind of output and writes it to corresponding files
+ (one per block, but the user does not need to be aware of the details of the 
+files themselves).
+\item By default there are three output managers: one for writing ``restart 
+configurations'' (in order to restart the simulation in the event of a crash or 
+other failure), one for writing the ``trajectory''---configurations to be used 
+for analysis, and one for writing ``energies''---various global quantities such
+ as potential and kinetic energies, pressure, etc.
+\item The output managers have the facility to write equally spaced in time
+ (``linear saving'') or equally spaced in log-time (``logarithmic saving'') as
+well as something in between which will be explained in a later section.
+\end{itemize}
+
+\subsection{Output methods on sample}
+
+
+The following class methods (member functions) of the sample class are the
+most relevant. Since this section is for a user who is relatively new to
+C++, we give sample code as would appear in the main function, rather than the
+C++ declarations including type information:
+
+\begin{verbatim}
+S->SetOutputBlockSize(blockSize); // set the block size for all output managers.
+S->SetWriteTrajectory(true); // (or false) turn on/off writing of trajectory (true by default)
+S->SetWriteEnergies(true); // (or false) turn of/off writing of energies (true by default)
+S->SetTrajectoryLinearWriteInterval(writeInterval); // pure "linear saving" of trajectory
+S->SetTrajectoryLogLinParams(base, 0); // pure "logarithmic saving" of trajectory
+S->SetEnergyLinearWriteInterval(writeInterval); // pure linear saving of energies
+S->SetEnergyLogLinParams(base, 0); // pure logarithmic saving of energies
+S->NotifyOutputManagers(); // called during the main simulation loop
+S->SetVerbose(true);// (or false) whether to write print statements to standard
+// output (true by default); sets corresponding variables in potential(s) and output managers 
+S->WriteConf("last_config.xyz.gz"); // write the current configuration to a file
+\end{verbatim}
+
+
+\noindent Note that restart configurations cannot be turned off. Note also that
+there the block size is common to all output managers. The name of the directory
+where the files are to be located is specified by a private variable of Sample.
+It is currently hard-coded to be ``TrajectoryFiles'' but some user-control of 
+this could be added in the future.
+
+\section{For the more advanced user/developer}
+
+\subsection{Class overview}
+
+Some more background information about how functionality is divided among
+different classes is necessary to understand the more advanced parts of the
+interface.
+
+
+\begin{description}
+\item [LogLinOutputManager] Provides the basic functionality of managing 
+linear/logarithmic/log-lin saving. Log-lin saving is a kind of interpolation 
+between pure linear and pure logarithmic which includes these two as special
+cases. This is an abstract base class; derived classes must 
+implement a \verb|Write()| function.
+\item [ConfigurationsLogLin] Derives from \verb|LogLinOutputManager|, used for
+the restart configurations and the trajectory configurations (via different 
+objects of this type). Relatively
+light-weight, since it passes the actual job of writing to a
+ \verb|RUMD_ConfWriterReader| object.
+\item [EnergiesLogLin] Derives from \verb|LogLinOutputManager|, used for 
+writing the
+energies. Details of what exactly is to be written are managed by an object
+of type \verb|RUMD_EnergiesMetaData|.
+\item [RUMD\_ConfWriterReader] Does writing (and reading) of configurations in 
+the RUMD format. Details of exactly what items are to be included in 
+configuration files are managed by an object of type \verb|RUMD_ConfMetaData|.
+\item [RUMD\_ConfMetaData] Manages meta-data for configuration files: the
+ precision, the values of meta-data to be written in the comment line, and 
+information about which data-columns are to be included.
+\item [RUMD\_EnergiesMetaData] Manages meta-data for energy files: the 
+precision, the values to be written in the comment line, and what data-columns
+are to be included.
+\end{description}
+
+
+Note that \verb|EnergiesLogLin| does the writing itself, while
+separate classes for writing (and reading) exist only for configurations. It
+is important that they exist independently of the log-lin scheduling, because
+the user should be able to decide to write a single configuration (e.g. call
+\verb|S->WriteConf(filename);|
+at the end of the program) independent of whether trajectories were written.
+
+
+\subsection{Methods and sample code}
+
+The following output-related methods on Sample give more control to the user
+(now we give the full method declarations).
+
+\begin{verbatim}
+class Sample {
+public:
+  RUMD_ConfMetaData& GetTrajectoryConfMetaData();
+  RUMD_EnergiesMetaData& GetEnergiesMetaData();
+  void AddOutputManager(LogLinOutputManager* om); // add a new output manager 
+     // beyond the three present by default.
+  void InitializeOutputManagers(unsigned long int timeStepIndex); // does what it
+     // says. This will be called by NotifyOutputManagers if necessary, but 
+     // sometimes  it might be useful for the user to control when to call it
+  void TerminateOutputManagers(); // closes open files etc. Not necessary if doing
+     // a single run
+};
+\end{verbatim}
+
+\verb|RUMD_ConfMetaData| and \verb|RUMD_EnergiesMetaData| contain several 
+public members which the user can set directly. For the latter, a function \verb|Set(std::string, bool)| is used to set whether a given quantity should be 
+written to the files. The full class declarations are given in the 
+appendix, where the reader can see the complete set of options.
+Here are some examples of how these might be used in a main function:
+
+\begin{verbatim}
+   S->GetTrajectoryConfMetaData().precision = 9;
+   S->GetTrajectoryConfMetaData().has_pot_energies = true;
+   S->GetTrajectoryConfMetaData().has_virials = true;
+   S->GetEnergiesMetaData().precision = 9;
+   S->GetEnergiesMetaData().Set("virial", true);
+\end{verbatim}
+
+\subsection{Full log-lin  functionality}
+
+The ``log-lin'' technique allows saving either logarithmically
+(that is, equally spaced $\log(t_i)$ values), linearly (equally spaced $t_i$
+values) or a kind of interpolation of the above. 
+ To explain in more detail we will make reference to the
+actual data structure used to implement it. The basic structure is a class
+called LogLin (not completely shown):
+
+\begin{verbatim}
+class LogLin{
+ public:
+  unsigned long int block;          // identifies the current block
+  unsigned long int nextTimeStep;   // identifies the next time step (within the block) to write
+  unsigned long int base;           // size of smallest interval between writes (set by the user, fixed)
+  unsigned long int index;          // labels items within a block
+  unsigned long int maxIndex;       // value of index for the last item in block
+  unsigned long int maxInterval;    // overrides log-indexing to give linear (set by the user, fixed)
+};
+\end{verbatim}
+
+
+The elements here identify both the parameters of a particular log-lin saving
+scheme and the details of the next step to be saved. They are typically 
+included in the comment line for a configuration in a trajectory file,
+so that analysis programs can identify a given item  (configuration or 
+line of energies) and the saving scheme which generated it. A description of
+each one follows.
+
+\begin{description}
+\item[block] Identifies which output block we are in. Will therefore be the same
+for all items written in a given block.
+\item[nextTimeStep] Identifies the time step within a block, so starts at zero
+in each block and, if using pure logarithmic saving with base equal to one and
+maxInterval equal to zero, will then proceed
+through 1, 2, 4, 8, \ldots
+\item[base] This is the smallest number of time steps considered, and is equal
+to 1 in the simple version above. It does not change during a simulation run,
+but is a parameter controlled by the user. All relevant intervals are then
+multiples of base.
+\item[index] Labels items within a block, in that it starts at zero and 
+increments by 1 for each item written. As long as maxInterval is set to zero
+(pure logarithmic saving), there is a simple relation between index and 
+nextTimeStep: nextTimeStep = 0 if index = 0 and nextTimeStep = 
+base $\times$ $2^{\textrm{index-1}}$ otherwise. Note that the size of a block, 
+blockSize, is not included explicitly in the LogLin class, but is given
+(again for pure logarithmic saving, maxInterval=0) by 
+base $\times 2^{\textrm{maxIndex-1}}$ 
+\item[maxIndex] The value of ``index'' for the last item in the block. So if
+the saving scheme is such that there are 8 items per block, maxIndex will have
+the value 7 (since index starts at zero). Does not change during a simulation
+run\footnote{The exception to this is linear saving where the interval does not evenly divide the blockSize.}; is set based on parameters specified by the user.
+\item[maxInterval] The largest interval allowed between saves. This is a user
+parameter which does not change. Its purpose is to allowed combined linear and
+logarithmic saving. It should be set to zero to do pure logarithmic saving.
+If non-zero, the interval between writes will, after increasing initially
+logarithmically become fixed at maxInterval. There is a more complicated 
+relation between nextTimeStep and index in this case.
+\end{description}
+
+Some possible combinations are, assuming blockSize=128
+
+\begin{description}
+\item[Pure logarithmic saving with base 1] Set base=1, maxInterval=0, and you
+get time steps 0, 1, 2, 4, 8, 16, 32, 64, 128
+\item[Pure linear saving at interval 4 time steps] Set base=4 and maxInterval=4
+and you get time steps 0, 4, 8, 12, 16, \ldots, 128
+\item[``Interpolated'' log-lin] Set base=1 and maxInterval=8, and you
+get time steps 0, 1, 2, 4, 8, 16, 24, 32, 40, 48, 56, \ldots, 128
+\end{description}
+
+
+Note the following restrictions on the values of base
+and maxInterval:  When maxInterval is non-zero it must be a 
+multiple of base. Except for the case of linear saving (base=maxInterval), both
+base and maxInterval must divide evenly into blockSize. 
+
+
+
+\subsection{Motivation and discussion}
+
+This motivation section has been placed at the end of document so that people 
+who need to know the basics of the interface can quickly find what they need
+at the start. The intention here is to explain the necessity/usefulness of
+ having a relative complex system for controlling data output, as well as the
+reasons for some of the design decisions.
+
+
+The simulations we are most interested in run for a long time 
+($10^8$-$10^{10}$ time steps), and we are interested in dynamics on both short 
+and long time scales. Because of the presence of long relaxation times, even if
+interested in only short times a short simulation is not useful 
+because it is necessary to average over long times.
+Writing data (configurations as well as thermodynamic
+data such as energies and pressures, for simplicity referred to collectively
+as ``energies'' ) at equally-spaced intervals is not appropriate because the 
+requirement of short-time dynamical information means that the write-interval
+should be short, but then because the simulations are so long we end up writing
+vast amounts of data and filling up disk space too rapidly.
+
+A possible method for sampling short-time  dynamics is the following, which 
+could be characterized as ``intermittent short-time saving'': We 
+divide the simulation time
+into $n_b$ ``output blocks'' where $n_b$ is expected to be of order 100-1000. 
+Therefore each block a size $l_{block}$ of order
+ $10^5$-$10^8$ time steps. We  write 
+data for only the first 1000 (or whatever) time steps of each block. It would be
+perhaps one percent of the total. This gives
+sufficient data to resolve dynamics on time scales up to 1000 time steps, which
+can be properly averaged over long times. By considering the first time step
+in each block dynamical information at the longest time scales is also 
+available.
+
+The limitation of the above approach is that intermediate time scales are
+not available. To have a broad range of time scales we need to save 
+``logarithmically'' within blocks. In the simplest version we assume the block 
+size is a power of 2. Labelling the time steps within a block by indices 
+0, 1, 2, 3, 4, \ldots,  we write data at time indices $t_i$=0, 1, 2, 4, 8, 16,
+\ldots, $l_{block}$; that is, zero and all powers of two up to the block size. 
+Note that in this scheme data for the time step $t_i=l_{block}$ gets written
+twice, both as the end of a block, and as the start of the following block.
+This redundancy has negligible cost and can be helpful for ensuring consistency
+and simplifying analysis. In this scheme the number of time steps for which 
+data is saved is $n_b (2+\log_2(l_{block}))$ which is a tiny fraction of the 
+total, assuming $l_{block} \gg 1000$.
+Considering time {\em differences} (which are relevant to analysis of dynamics)
+there are more available than just powers of two,  in fact 
+$\Delta t_i$=1, 2, 3, 4, 6, 8, 12, 14, 16, \ldots, although analysis programs
+may choose not to use all possible differences. 
+
+
+The function \verb|AddOutputManager| allows the user to add new objects
+to the list of log-lin managers, for example to be able to add more than one 
+kind of scheduling to
+be active in a given simulation concurrently. OutputManger objects provided
+from outside by the user are assumed to be owned by the user---Sample does not
+destroy them, while it does destroy the three default ones in its destructor.
+
+
+\subsection{Possible future extensions}
+
+With the existing class structures it becomes easy to generalize:
+
+\begin{itemize} 
+\item Making classes that write (and read---it makes sense to keep code for
+writing and reading a given format together in the same class) configurations 
+in alternative formats. Technically this means defining an (abstract) base class
+\verb|ConfWriterReader| from which other writer classes could be derived. 
+It/they would have the same interface as \verb|RUMD_ConfWriterReader|, and
+one would pass a base-class pointer to \verb|ConfigurationsLogLin|
+\item Generalizing from
+log-lin to other kinds of scheduling, for example
+the intermittent short-time saving protocol described above, 
+which could still be useful in cases where one was interested in 
+having very detailed short-time dynamical information averaged over long
+times. In this case there would be a new base class \verb|OutputManager|
+from which \verb|LogLinOutputManager| would derive, along with other, non
+log-lin based, output scheduling classes.
+\end{itemize}
+
+\appendix
+
+\section{Meta-data class declarations}
+
+Here we present the definitions of the two meta-data classes, so
+that the list of available options can be seen. The interfaces are
+slightly different, in particular \verb|RUMD_EnergiesMetaData|uses
+Set and Get functions to set the attributes which specifies whether a given
+quantity should be written or not. Non-public parts of the class are not shown.
+
+\subsection{RUMD\_ConfMetaData}
+
+
+
+
+\begin{verbatim}
+class RUMD_ConfMetaData
+{
+public:
+  RUMD_ConfMetaData():
+    precision(6),
+    rumd_conf_ioformat(0), // refers to a file, so could be different from the \
+current rumd_conf_ioformat                                                      
+    numTypes(1), // refers to a file                                            
+    timeStepIndex(0),
+    numMolecules(0),
+    L(),
+    Ps(0.),
+    Pv(0.),
+    dt(0.),
+    massOfType(),
+    has_images(false),
+    has_velocities(false),
+    has_forces(false),
+    has_pot_energies(false),
+    has_virials(false),
+    has_moleculeIndices(false),
+    has_logLin(false),
+    blockSize(0),
+    logLin()
+  {
+    // might want to remove this and place the burden of initialization         
+    // on the calling function                                                  
+    for(unsigned int cd = 0; cd < DIM; ++cd)
+      L[cd] = 0.;
+    for(unsigned int tdx = 0;tdx < MaxNumTypes; ++tdx)
+      massOfType[tdx] = 1.;
+  }
+  // the function which parses the comment line for configuration files         
+  void ReadMetaData(char *commentLine, bool verbose);
+
+ unsigned int precision;
+  // might want to add a separate precision for energies/virials                
+  unsigned int rumd_conf_ioformat;
+  unsigned int numTypes;
+  unsigned int timeStepIndex;
+  unsigned int numMolecules;
+  float L[DIM];
+  float Ps;
+  float Pv;
+  float dt;
+  float massOfType[MaxNumTypes];
+  bool has_images;
+  bool has_velocities;
+  bool has_forces;
+  bool has_pot_energies;
+  bool has_virials;
+  bool has_moleculeIndices;
+  bool has_logLin;
+  unsigned int blockSize;
+  LogLin logLin;
+\end{verbatim}
+
+\subsection{RUMD\_EnergiesMetaData}
+
+
+
+\begin{verbatim}
+class RUMD_EnergiesMetaData
+{
+public:
+  RUMD_EnergiesMetaData():
+    rumd_energies_ioformat(0),
+    precision(6),
+    writeInterval(100),
+    usingAtomicVirPress(true),
+    has_logLin(false),
+    timeStepIndex(0),
+    logLin(),
+    options(),
+    fileStr()
+  {
+    options["potentialEnergy"] = true;
+    fileStr["potentialEnergy"] = "pe";
+    options["kineticEnergy"] = true;
+    fileStr["kineticEnergy"] = "ke";
+    options["virial"] = true;
+    fileStr["virial"] = "W";
+    options["totalEnergy"] = true;
+    fileStr["totalEnergy"] = "Etot";
+    options["temperature"] = true;
+    fileStr["temperature"] = "T";
+    options["pressure"] = true;
+    fileStr["pressure"] = "p";
+    options["volume"] = false;
+    fileStr["volume"] = "V";
+    options["thermostat_Ps"] = true;
+    fileStr["thermostat_Ps"] = "Ps";
+    options["enthalpy"] = false;
+    fileStr["enthalpy"] = "H";
+    options["potentialVirial"] = false;
+    fileStr["potentialVirial"] = "pot_W";
+    options["constraintVirial"] = false;
+    fileStr["constraintVirial"] = "con_W";
+    options["stress_xx"] = false;
+    fileStr["stress_xx"] = "sxx";
+    options["stress_yy"] = false;
+    fileStr["stress_yy"] = "syy";
+    options["stress_zz"] = false;
+    fileStr["stress_zz"] = "szz";
+    options["stress_yz"] = false;
+    fileStr["stress_yz"] = "syz";
+    options["stress_xz"] = false;
+    fileStr["stress_xz"] = "sxz";
+    options["stress_xy"] = false;
+    fileStr["stress_xy"] = "sxy";
+    options["v_com_x"] = false;
+    fileStr["v_com_x"] = "v_com_x";
+    options["v_com_y"] = false;
+    fileStr["v_com_y"] = "v_com_y";
+    options["v_com_z"] = false;
+    fileStr["v_com_z"] = "v_com_z";
+    options["configTemperature"] = false;
+    fileStr["configTemperature"] = "configT";
+    options["laplacian"] = false;
+    fileStr["laplacian"] = "laplacian";
+    options["simulationDisplacementLength"] = false;
+    fileStr["simulationDisplacementLength"] = "dispLength";
+    options["instantaneousTimeStepSq"] = false;
+    fileStr["instantaneousTimeStepSq"] = "dt^2";
+    options["euclideanLength"] = false;
+    fileStr["euclideanLength"] = "eclLength";
+  }
+  void Set(std::string key, bool val);
+  bool Get(const std::string& key);
+  const std::string& GetFileString(const std::string& key);
+  unsigned int rumd_energies_ioformat;
+  int precision;
+  int writeInterval;
+  bool usingAtomicVirPress;
+  bool has_logLin;
+  unsigned int timeStepIndex;
+  LogLin logLin;
+  // the function which parses the comment line for configuration files         
+  void ReadMetaData(char *commentLine, int verbose);
+
+
+\end{verbatim}
+
+Note that for each quantity there is a string which labels it internally as 
+well as a ``file string'' which appears in the comment line of the file and
+labels the corresponding column.
+
+\end{document}

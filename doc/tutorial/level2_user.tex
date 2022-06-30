@@ -1,0 +1,184 @@
+%\documentclass{article}
+%\usepackage{verbatim}
+%\usepackage{graphicx}
+%\usepackage{amssymb,amsmath}
+
+\section{Level 2: Fine control} 
+
+%\author{LB}
+%\date{Level 2}
+%\begin{document}
+%\maketitle
+
+
+The user at level 2 can use the full \verb|Simulation| interface
+to control many details of the simulation. Here we 
+present, mostly 
+in the form of python code-snippets, some of the more advanced 
+aspects of the interface, though
+without trying to present a complete documentation. The next
+step is to look on the RUMD web-page (\verb|rumd.org|) under ``example
+scripts'' for ideas about how to get the most out of RUMD.
+
+
+\subsection{Controlling how the simulation run is divided into blocks}
+
+The simulation output is divided into blocks of size \verb|blockSize|. 
+By default the block-size is chosen when \verb|Run| is called, so that
+there will be of order 100-200 blocks in the given number of time-steps.
+Sometimes it is useful to explicitly specify the block-size (this will sometimes be necessary when using log-lin because there are some constraints on the 
+block-size in relation to the log-lin parameters). The following will set
+the blockSize (we denote by \verb|sim| the \verb|Simulation| object):
+
+\begin{verbatim}
+  sim.SetBlockSize(1024)
+\end{verbatim}
+
+\subsection{Controlling what gets written to energies and trajectory files}
+
+To change what gets written we call the \verb|SetOutputMetaData| method, which
+functions similar to \verb|SetOutputScheduling| in that it takes a string with 
+the name of the output manager, and one or more keyword arguments specifying 
+either that a parameter should be included or not, or what the overall 
+precision should be.
+
+
+\begin{verbatim}
+  sim.SetOutputMetaData("energies",totalEnergy=False,stress_xy=True, precision=7)
+\end{verbatim}
+which turns off writing the total energy, turns on writing the xy component
+of the stress tensor, and sets the precision to seven decimal places. 
+Table~\ref{energyQuantities} shows the most important available
+quantities. To each of these are associated two strings: an ``identifier'' for
+use in scripts, to refer to a given quantity when turning it ``on'' or ``off'';
+and a ``column-label'', which appears in the comment-line of the energies file
+to identify which column corresponds to which quantity.
+
+\begin{table}
+  \caption{\label{energyQuantities}Identifier and column-label for the main
+    quantities that can be written to the energies file.}
+  \begin{center}
+    \begin{threeparttable}
+      \begin{tabular}{|c|c|}
+        \hline
+        identifier & column label \\
+        \hline
+        \verb|potentialEnergy| & \verb|pe| \\
+        \verb|kineticEnergy| & \verb|ke| \\
+        \verb|virial| & \verb|W| \\
+        \verb|totalEnergy| & \verb|Etot| \\
+        \verb|temperature| & \verb|T| \\
+        \verb|pressure| & \verb|p| \\
+        \verb|volume| & \verb|V| \\
+        \verb|stress_xx| & \verb|sxx| \tnote{(a)} \\
+        \hline
+      \end{tabular}
+      \begin{tablenotes}
+      \item[(a)] Potential part of atomic stress. Similarly yy, zz, xy, etc
+      \end{tablenotes}
+  \end{threeparttable}
+  
+\end{center}
+\end{table}
+
+
+
+For simulations in which more than one potential is present, 
+the contributions from different terms
+to the total potential energy can be included in the energies file. Each 
+potential class has an ID string. For example for \verb|Pot_LJ_12_6| it is 
+``potLJ''. If desired the ID string can be changed (for example to the simpler 
+``LJ'') via
+
+\begin{verbatim}
+  pot.SetID_String("LJ")
+\end{verbatim}
+In the case of contributions to potential energy this ID-string functions as
+both the identifier in scripts, and the column-label in the energies-file.
+So for example, after changing the ID-string to ``LJ'' as above, to cause it 
+to be written we would write
+
+\begin{verbatim}
+  sim.SetOutputMetaData("energies", LJ=True)
+\end{verbatim}
+There is a mechanism for additional quantities to be defined and included in
+the energies file, via classes of type \verb|ExternalCalculator|. This is
+described in the user manual.
+
+\subsection{Changing the sample volume within the script}
+
+It can be useful to take a configuration corresponding to one density and
+rescale the box and particle coordinates such that it has a different density.
+This is accomplished by the following lines (which also show how to get the
+current volume and number of particles).
+
+\begin{verbatim}
+  nParticles = sim.GetNumberOfParticles()
+  vol = sim.GetVolume()
+  currentDensity = nParticles/vol
+  sim.ScaleSystem( pow(newDensity/currentDensity, -1./3) )
+\end{verbatim}
+where \verb|newDensity| is understood to be the desired density.
+
+\subsection{Options for Run: Restarting a simulation, 
+suppressing output, continuing output}
+
+Under default conditions a ``restart file'' will be written, once per 
+output-block. If a simulation is interrupted (due to hardware problems for 
+example), it can be restarted from the last completed 
+block (here 12) by
+ 
+\begin{verbatim}
+  sim.Run(20000, restartBlock=12)
+\end{verbatim}
+where the original number of time-steps should be specified, and the last
+completed block can be found by looking at the file 
+``LastComplete\_restart.txt'' in TrajectoryFiles. It is possible to suppress 
+writing of restart files (so restarts will not be possible), 
+and all other output, by calling
+
+\begin{verbatim}
+  sim.Run(20000, suppressAllOutput=True)
+\end{verbatim}
+This might be done for example, during an initial period of equilibration, 
+although if this is planned to take a long time, it may be advisable to allow
+restart files to be written, in case of possible interruptions.
+
+To avoid re-initializing the output, so that repeated calls to Run will 
+append to the existing energies and trajectory files, do
+
+\begin{verbatim}
+  sim.Run(20000, initializeOutput=False)
+\end{verbatim}
+This will give an error if \verb|Run| was not called previously in the normal
+way (\verb|initializeOutput=True|, which is its default value).
+
+
+\subsection{Getting optimum performance via the autotuner}
+
+RUMD involves several internal parameters whose values do not affect the 
+results of the simulation within round-off
+error, but they can have a noticeable effect on performance. The easiest way
+to identify the optimal values is to use the autotuner, which is a python
+script that takes a simulation object which is ready to run (the potential(s)
+and integrator have been set), and determines the best values for the internal
+parameters. The following snippet shows how this is done.
+
+\begin{verbatim}
+from rumd.Autotune import Autotune
+at = Autotune()
+[create sim with associated potential(s) and integrator]
+at.Tune(sim)
+sim.Run()
+\end{verbatim}
+
+The time taken to do the tuning is of order a minute for small systems
+(longer if constraints are involved). The autotuner writes a file,
+\verb|autotune.dat| in the directory. If the simulation is re-run in the same
+directory with the same user parameters and on the same type of graphics card, 
+then the autotuner will simply use the previously determined internal 
+parameters.
+
+\clearpage
+
+%\end{document}

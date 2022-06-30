@@ -1,0 +1,173 @@
+%\documentclass{article}
+%\usepackage{amssymb,amsmath}
+%\usepackage{comment} 
+%\usepackage{graphicx}
+\section{Level 3: How to implement your own pair potential in RUMD}
+
+%\author{LB}
+%\date{Level 3}
+%\begin{document}
+%\maketitle
+%\noindent
+This tutorial will describe how to implement a new pair potential and
+test it. Let us say we want to implement a Gaussian core potential: 
+\begin{equation}
+v(r) = \epsilon \exp\left[ -\left( \frac{r}{\sigma} \right)^2 \right]
+\end{equation}
+
+
+When implementing a new pair potential there are a number of things to do:
+\begin{enumerate}
+  \item Implement the potential and force into the RUMD source code
+  \item Include the new potential in the Python interface 
+  \item Compile
+  \item Test the potential
+  \item Use it
+\end{enumerate}
+
+The \verb|PairPotential.h| in the directory <RUMD-HOME>/include /rumd
+contains all the pair potentials, implemented as classes in C++. 
+
+We start with a review of the general 12-6 Lennard-Jones potential - it is 
+the first pair potential in the file (search for \verb|Pot_IPL_12_6|). Note
+that this is not the one most typically used in simulations; that would be
+one of its derived classes \verb|Pot_LJ_12_6|. The difference is only in how
+the parameters are specified: for the \verb|Pot_IPL_12_6| potential, rather
+than \verb|Epsilon| and \verb|Sigma|, we specify the coefficients of the IPL
+terms, \verb|A12| and \verb|A6|. We will 
+make a copy of it and change it to the Gaussian core potential. 
+
+The implementation is split into two major parts: The first part is the 
+function \verb|SetParams(...)| which is called by the user via the 
+python interface. The last part is the function \verb|ComputeInteraction| 
+where the actual  computation (on the GPU) is taking place. 
+
+
+\verb|SetParams(...)| is called via the python interface once for
+each type of interaction, with \verb|i| and \verb|j| denoting the types
+of the two particles involved in the particular
+interaction. The user specifies the coefficients $A_{12}$ and $A_6$
+and the cut-off $R_{cut}$ (in other potentials the parameters might include a
+characteristic length $\sigma$ and 
+characteristic energy $\epsilon$ and possibly more parameters).
+The parameters of the potential are communicated by storing them in 
+\verb=h_params[i][j][]=.  NOTE: the correctness of the program relies on \verb=h_params[i][j][0]= containing the cut-off in absolute units. 
+In other words, interactions between particles of type \verb|i| and \verb|j|
+are only computed if the distance between the two particles is less than
+ \verb=h_params[i][j][0]=. The rest
+of the stored parameters are chosen to facilitate fast computation.
+
+The actual computation of the potential and the associated force 
+is done on the GPU by the 
+function \verb|ComputeInteraction(...)|. When this is called 
+\verb|dist2| contains the square of the distance between the two 
+particles in question, and \verb|param| contains the appropriate 
+parameters as set up by  \verb| SetParams(...)|. From this information, 
+the function calculates  $s$ (i.e. the force, see below in equation
+(\ref{s})) and the potential. In the Lennard-Jones
+potential it is convenient to define two inverse lengths
+\verb|invDist2| and \verb|invDist6| to minimize the number of
+calculations. With these
+lengths it is easy to calculate $s$ and the potential energy.
+\verb|(*my_f).w +=| is the contribution to the potential energy.
+
+We will now proceed to implement a Gaussian core potential. First 
+step is to write up the equations we will implement. We will here 
+implement the Gaussian core potential (repeated below)
+\begin{equation}
+   v(r) = \epsilon \exp\left[ -\left( \frac{r}{\sigma} \right)^2 \right]  
+\end{equation}
+
+We have to provide the function $s$ which is used 
+by RUMD to calculate the force:
+\begin{equation}
+   s(r) \equiv -\frac{1}{r}\frac{d U(r)}{d r} = \frac{2 \epsilon}{\sigma^2}\exp\left[ -\left( \frac{r}{\sigma} \right)^2 \right] \label{s}
+\end{equation}
+
+Now copy the entire Lennard-Jones potential and paste it somewhere in the file
+\verb|PairPotential.h|. Replace \verb|Pot_IPL_12_6| with \verb|Pot_Gaussian| 
+(four places).
+Choose a default identity string, e.g. \verb|SetID_String("potGauss");|.
+
+We will change the arguments in the \verb| SetParams(...)| to match those of
+the other LJ potential \verb|Pot_LJ_12_6| which uses $\epsilon$ and $\sigma$ 
+instead of $A_{12}$ and $A_6$, since
+the Gaussian potential also has a characteristic length $\sigma$ and a 
+characteristic energy $\epsilon$. But we need to make corresponding
+changes to the \verb|h_params[i][j][]|'s. For the Gaussian potential they
+become: 
+\begin{itemize}
+  \item \verb|h_params[i][j][0] = Rcut * Sigma;|
+  \item \verb|h_params[i][j][1] = 1.f / ( Sigma * Sigma );|
+  \item \verb|h_params[i][j][2] = Epsilon;|
+\end{itemize}
+Note that here the user parameter \verb|Rcut| is to be interpreted as a scaled
+cutoff, in units of the corresponding $\sigma$.
+ Now we can write the part taking place on the GPU. Since we do
+not need any inverse distances delete the lines computing 
+\verb|invDist2| and \verb|invDist6|. We define instead a 
+float called \verb|Dist2|:
+\begin{verbatim} 
+float Dist2 = dist2 * param[1];
+\end{verbatim}
+which is $(r/\sigma)^2$. To avoid computing the exponential more than once, we define:
+\begin{verbatim} 
+float exponential =  exp(-Dist2);
+\end{verbatim}
+With these definitions, $s$ is simply implemented as:
+\begin{verbatim}
+float s = 2.f * param[1] * param[2] * exponential;
+\end{verbatim}
+The next line is the potential:
+\begin{verbatim}
+(*my_f).w += param[2] * exponential;
+\end{verbatim}
+
+This finishes the actual implementation, and we now proceed with a number of more technical changes ensuring that RUMD knows your new pair potential exists. 
+\begin{itemize}
+  \item In the file \verb|Potentials.i| in the directory 
+        <RUMD-HOME>/Swig copy the entry (see below) relating to 
+        \verb|Pot_IPL_12_6|, replace \verb|Pot_IPL_12_6| with your potential name, change the arguments to \verb|SetParams| in accordance with how it was defined in \verb|PairPotential.h|, and replace the docstring with a similar brief description of your potential. To be 100\% clear about what needs to be copied, here is the entry for \verb|Pot_IPL_12_6|:
+
+\begin{verbatim}
+// docstring for Pot_IPL_12_6
+%feature("autodoc","Standard 12-6 Lennard-Jones (cut and shifted potential)
+v(r) =  ( A12/r^12  +  A6/r^6 ) - v_cut
+s(r) = 12 A12/r^14 + 6 A6/r^8  = -r^-1*dv/dr (F_ij = s * r_ij)") Pot_IPL_12_6;
+
+class Pot_IPL_12_6 : public PairPotential
+{
+ public:
+  Pot_IPL_12_6( CutoffMethod cutoff_method );
+  void SetParams(unsigned int i, unsigned int j, float A12, float A6, float Rcut);
+};
+\end{verbatim}
+
+  \item In the directory <RUMD-HOME> do\\
+        \verb|make|        
+\end{itemize}
+
+
+If everything compiled without errors the new pair potential will 
+now be available from the python interface, and you need to test 
+it. Run a simulation as described in the Level 1 tutorial, but choose the 
+new potential.  
+
+Check that the simulation ran with the correct potential by plotting 
+it by adding \\ 
+\verb|potential.WritePotentials(sim.sample.GetSimulationBox())|
+to your script. This command produces a file ''potentials\_\verb=PotID=.dat'' where the potential $v(r)$ is followed by the radial force $f(r)$ in each column for all 
+possible particle pairs.
+
+Make sure that the cut-off is done correctly by the program by zooming in on that distance. An example is shown in figure \ref{Gauss}. 
+\begin{figure}[!ht]
+\centering
+\includegraphics[width=0.75\textwidth]{level3/GCpotential}
+\caption{The Gaussian core potential.}\label{Gauss}
+\end{figure}
+Next, run a NVE simulation and test that the total energy is conserved (i.e., have fluctuations that are much smaller 
+than for the potential and kinetic energy). 
+\newline \newline 
+Have fun with RUMD!
+
+%\end{document}

@@ -1,0 +1,137 @@
+%\documentclass{article}
+
+%\usepackage{geometry}
+
+%\begin{document}
+
+\section{Introduction}
+The CUDA project has enabled scientists to utilise NVIDIA's many-core
+Graphical Processor Unit (GPU) to solve complex computational
+problems. Beside being a very fast processor the GPU is relatively
+cheap, and is thus an ideal computational unit for low-cost high
+performance supercomputing. Scientific software is currently being
+developed in a very rapid pace by many different groups world wide,
+and today there exists optimized software for fluid dynamics and
+matrix operations just to name a few.   
+
+RUMD [`r\textopeno m di\normalsize$^\bullet$]  
+is a high-performance molecular dynamics simulation software package
+optimized for NVIDIA's graphics cards. RUMD is designed for small to
+medium size systems of spherical particles and simple molecules. RUMD
+is developed at The Danish National Research Foundation's centre 
+``Glass and Time'' which is located at the Department of Sciences,
+Roskilde University.   
+
+\subsection{Features}
+RUMD currently supports: 
+\begin{itemize}
+\item van der Waals type pair potentials: Lennard-Jones, Gaussian
+  core, inverse power law, exponential, and more. It is easy to implement new pair
+  potentials. 
+\item Multicomponent simulations
+\item Bond stretching potentials: Harmonic and FENE
+\item Bond constraint dynamics
+\item Angle bending potentials
+\item Dihedral  potentials
+\item NVE, NVT, NPT (atomic) and NVU  ensemble simulations
+\item Non-equilibrium sheared simulations using Lees-Edwards boundary conditions and the SLLOD equations of motion
+\item A Python interface including user-defined on-the-fly analysis.
+\item Tools for setting up configuration files, including molecular systems.
+\item Post simulation analysis tools
+\end{itemize}
+In the near future we plan to implement:
+\begin{itemize}
+\item NPT (molecular) ensemble 
+\item Ewald-based Couloumb interactions (a Coulomb potential using direct pair summation and a shifted-force cut-off is available which gives reasonable performance and accuracy for bulk ionic systems)
+\end{itemize}
+
+\subsection{User philosophy}
+We have defined five users of RUMD:
+\begin{enumerate}
+\item A user at level 1 is one who can write or copy a simple python script
+(for example the one given later in this tutorial) to run a standard molecular 
+dynamics simulation, and use the provided analysis tools to perform standard
+analysis of the output. This user can make some basic choices, such as the
+potential, the integrator, and controlling the frequency of output.
+\item This user understands the deeper structure of the code---that is
+the different kinds of classes/objects, the relations between them, and their 
+interfaces---and understands how the python language works, and can therefore 
+write more sophisticated python scripts which
+access the full power and flexibility of RUMD.
+\item A user at level 3 is one with minimal experience in C++ can write
+her own (pair-)potential functions, to be available as classes derived from
+\verb|PairPotential|.
+\item This user can write their own analysis programs in C++, but does not
+need to know anything about GPU programming, since analysis is generally
+carried out on the CPU.
+\item RUMD developer. Must have a good knowledge of C++, CUDA programming
+and knowledge of Subversion.
+\end{enumerate}
+This tutorial will bring you from level 1 to level 3. Note that level 3 is
+higher than level 2 in that it requires the user to write some C++ code and
+re-compile the code, but that involves a relatively limited list of things to 
+do. Level 2, which stays at the python level, but involves access to almost all of 
+the underlying C++ functionality, could take longer to master.
+
+
+\subsection{Installation}
+For Debian-like systems, RUMD can be installed as a package. 
+Use the following repository entries appended to 
+\textsf{/etc/apt/sources.list} 
+or in a file in \textsf{/etc/apt/sources.d/} 
+\begin{verbatim}
+deb [trusted=yes] http://carid.ruc.dk/rumd buster main
+deb-src [trusted=yes] http://carid.ruc.dk/rumd buster main
+\end{verbatim}
+To install RUMD simply use an equivalent of:
+\begin{verbatim}
+apt update
+apt install rumd rumd-doc python3-rumd
+\end{verbatim}
+You need to have root privileges, of course. 
+
+You can also build the package from the source. To do so, download the
+source code from the RUMD homepage 
+\begin{verbatim}
+http://rumd.org/download.html
+\end{verbatim}
+and unpack the file using
+\begin{verbatim}
+tar xzvf rumd-X.X.tar.xz
+\end{verbatim}
+where \verb|X.X| is the version number. Enter the source directory 
+\begin{verbatim}
+cd rumd-X.X
+\end{verbatim}
+and build the package by typing 
+\begin{verbatim}
+make
+\end{verbatim}
+To test your installation use
+\begin{verbatim}
+make test
+\end{verbatim}
+This test will take approximately 5-10 minutes.
+
+Notice, you cannot type \verb=make install= since the default path is 
+different from system to system. We will refer to the installation
+path as \verb=<RUMD-HOME>=  
+
+
+\subsection{Setting the path for python}
+
+In a proper installation the python  modules should be located in a standard
+place where python will automatically find them. This may not be possible if
+you do not have root privileges, however. If you have compiled the software
+yourself, you need to set the environment variable PYTHONPATH as follows 
+For C-shell it would go in your \verb|.cshrc| file; 
+
+\noindent \verb|setenv PYTHONPATH <RUMD-HOME>/Swig:<RUMD-HOME>/Python:<RUMD-HOME>/Tools|
+
+For bash you would add the following to your \verb|.profile|;
+
+\noindent \verb|export PYTHONPATH=<RUMD-HOME>/Swig:<RUMD-HOME>/Python:<RUMD-HOME>/Tools|
+
+\clearpage
+
+%\end{document}
