@@ -1,0 +1,13 @@
+Document: rumd-doc
+Section: Science/Physics
+Title: RUMD tutorial and user manual
+Abstract: These documents describe the Roskilde University Molecular Dynamics software
+
+Format: HTML
+Index: /usr/share/doc/rumd-doc/tutorial/index.html
+Files: /usr/share/doc/rumd-doc/tutorial/*.html
+
+Format: PDF
+Files: /usr/share/doc/rumd-doc/tutorial.pdf
+Files: /usr/share/doc/rumd-doc/UserManual.pdf
+

@@ -1,0 +1,21 @@
+#!/usr/bin/make -f
+
+export DH_ALWAYS_EXCLUDE=.svn:.svnignore
+
+%:
+	dh $@ --with python3
+
+#
+override_dh_auto_build:
+	make 
+	make doc
+
+override_dh_compress:
+	dh_compress -X.pdf -X.top
+
+override_dh_auto_install:
+	dh_numpy
+
+# Commands not to run:
+override_dh_auto_test:
+

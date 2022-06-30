@@ -1,0 +1,240 @@
+rumd (3.5-1) unstable; urgency=low
+
+  * debian/source/format set to: 3.0 (quilt)
+  * svn changes until rev 1899
+
+ -- Heine Larsen <heinela@ruc.dk>  Thu, 02 Jul 2020 21:23:36 +0200
+
+rumd (3.5) unstable; urgency=low
+
+  * remove python2 support
+  * use CUDA 10.1
+  * upgrade to swig4.0
+
+ -- Heine Larsen <heinela@ruc.dk>  Wed, 08 Apr 2020 16:23:33 +0200
+
+rumd (3.4-1) unstable; urgency=low
+
+  * rebuild for buster / Debian10 with CUDA 9.2 and python3.7
+  * add debian revision to version number
+
+ -- Heine Larsen <heinela@ruc.dk>  Sat, 06 Jul 2019 16:41:00 +0200
+
+rumd (3.4) unstable; urgency=low
+
+  * add python3-rumd package for python3 support
+  * use CUDA 9 from stretch-backports
+  * use boost1.67 from stretch-backports for CUDA 9 compatibility
+  * switch back from clang 3.8 to gcc 6, now working again with CUDA 9
+  * only use clang-3.8 with CUDA 8
+
+ -- Heine Larsen <heinela@ruc.dk>  Tue, 21 May 2019 10:57:41 +0200
+
+rumd (3.3) unstable; urgency=low
+
+  * add depends on python3-dev, for building shared library for python3
+  * build on Debian 9 using clang 3.8 as cc backend for nvcc
+  * replace use of python-scientific
+  * The "effective medium theory" many-body interatomic potential for metals has been added
+  * Python 3 compatibility has been added
+  * Some minor bugs fixed (e.g. small memory leak in NeighborList)
+  * Small improvements to set-up and analysis tools.
+
+ -- Heine Larsen <heinela@ruc.dk>  Fri, 21 Jul 2017 17:05:25 +0200
+
+rumd (3.2) unstable; urgency=low
+
+  * bugfix release
+  * src/rumd_algorithms.cu: Fix for bug introduced by fix of parallel
+    reduction bug (involving overwriting other arrays when
+    numParticles not a power of 2).
+  * updates for AxilrodTellerPotential
+
+ -- Heine Larsen <heinela@ruc.dk>  Thu, 02 Jun 2016 14:03:29 +0200
+
+rumd (3.1) unstable; urgency=low
+
+  * new minor release
+  * A new integrator, IntegratorNPTAtomic which simulates the NPT ensemble
+    for atomic systems (combined barostat + thermostat)
+  * A specialized pair potential for Coulomb interactions: Pot_ShiftedForceCoulomb
+    (instead of using IPL_n with n=1). The long range part of the Coulomb
+    interaction is omitted but for bulk systems this is not a problem.
+  * Performance optimizations: for large molecular systems due to better updating
+    after sorting, for general molecular systems due to better exclusion list processing,
+    and faster intra molecular forces (atomicAdd), and for systems with multiple
+    pair potentials (atomicAdd).
+  * New rumd_init_conf tool for creating configuration files for atomic systems
+    in a variety of crystal lattices (older ones such as rumd_init_conf_FCC are still
+    present but deprecated).
+  * Upgraded tool for creating configuration files for molecular systems, renamed
+    from rumd_sfg to rumd_init_conf_mol
+  * Ability to set particle masses within python script (as opposed to hacking the
+    configuration file)
+  * Python module and function RunCompress to gently change density (particularly
+    useful when setting up molecular configurations)
+  * Some changes in the Python paths/package structure. Setting paths is slightly
+    simpler, but requires changes to existing scripts.
+  * Two bugs fixed: (1) A race condition to non-thread-safe implementation of
+    parallel reduction summation used in the thermostat. This was manifest as
+    occasional slight jumps in the energy for large systems, but had minimal effect
+    on physically relevant quantities. (2) Certain combinations of lengths for
+    non-cubic boxes were incorrectly recognized (simulated as cubic boxes).
+  * Removed restriction on order for adding pair potentials versus molecular forces
+    (exclusions correctly implemented either way)
+  * More output is under control of "verbose" flag
+  * LESB and RSB now at same level in inheritance tree, removes confusion when
+    identifying type
+  * debian packaging fixes for python-rumd to properly include the python code
+
+ -- Heine Larsen <heinela@ruc.dk>  Wed, 27 Apr 2016 07:52:47 +0200
+
+rumd (3.0) unstable; urgency=low
+
+  * new major release
+
+ -- Heine Larsen <heinela@ruc.dk>  Mon, 16 Mar 2015 18:12:09 +0100
+
+rumd (2.1.2) unstable; urgency=low
+
+  * replace deprecated python-central with dh_python2
+  * debian/control: build depend on python-dev instead of python to make sure we have python-config
+  * debian/control: build depend on swig (>=2) 
+
+ -- Heine Larsen <heinela@ruc.dk>  Wed, 23 Jul 2014 16:00:08 +0200
+
+rumd (2.1.1) unstable; urgency=low
+
+  * bugfix release
+  * Compatible with CUDA 5.5.
+  * Minor problems with paths fixed.
+  * Some limits on system sizes in molecular systems removed.
+  * New tests added.
+  * Two small bugs fixed: one involving correct accounting of periodic images
+    in sheared systems which affected the calculation of the moecular stress,
+    the other involving the degrees of the freedom not being correctly determined
+    following a restart.
+  * Features added to analysis tools.
+  * Some other small improvements.
+
+ -- Heine Larsen <heinela@ruc.dk>  Mon, 23 Jun 2014 10:51:00 +0200
+
+rumd (2.1) unstable; urgency=low
+
+  * new release
+  * Main new features:
+  * Memory optimizations to allow over a million particles (atomic systems
+    only for now though, no molecules)
+  * SLLOD equations of motion integrator for molecular systems (using the
+    molecular formulation of the SLLOD algorithm and thermostat)
+  * User-defined "runtime" actions to be included in the main loop
+  * TetheredGroup class for manipulating tethering a group of particles to
+    a set of lattice sites by springs.
+  * Support for more types, maximum number of types is now 16 by default.
+  * Improvements to the autotuner (speed and reliability)
+  * Newton's third law now assumed by default, so not necessary to call
+    SetParams for both i,j and j,i.
+  * Improvements to analysis tools.
+
+ -- Heine Larsen <heinela@ruc.dk>  Mon, 09 Dec 2013 11:32:54 +0100
+
+rumd (2.0.2) unstable; urgency=low
+
+  * bugfix release
+  * svn r1361: Fixed bug involving wrong cutoffs for unlike particles 
+    (not a problem when the A-B cutoff was less than A-A or B-B, as in Kob-Andersen)
+  * updates to usermanual
+  * fix doc-base registration of tutorial and usermanual
+
+ -- Heine Larsen <heinela@ruc.dk>  Thu, 12 Sep 2013 12:03:28 +0200
+
+rumd (2.0.1) unstable; urgency=low
+
+  * bugfix release
+  * fix bugs with system scaling and particle sorting
+
+ -- Heine Larsen <heinela@ruc.dk>  Tue, 04 Jun 2013 14:40:51 +0200
+
+rumd (2.0) unstable; urgency=low
+
+  * new release
+  * major new features:
+    - optimization for large systems via spatial sorting.
+    - autotune script which automatically chooses the optimal values
+      for the internal parameters.
+    - new pair potentials and analysis tools.
+    - improved documentation within Python (docstrings).
+    - a user manual is nearly complete and will be available on
+      http://rumd.org/ soon.
+  * building with python2.7, for Debian 7.0
+
+ -- Heine Larsen <heinela@ruc.dk>  Fri, 31 May 2013 13:48:21 +0200
+
+rumd (1.2.3) unstable; urgency=low
+
+  * src/BondPotential.cu: Fixed bug: Double potential energy counting
+    in Harmonic bond potential and FENE bond potential kernels. This
+    only showed up if the bond potential was not the last potential
+    that was added to the simulation.
+
+ -- Heine Larsen <heinela@ruc.dk>  Tue, 11 Sep 2012 14:39:56 +0200
+
+rumd (1.2.2) unstable; urgency=low
+
+  * src/PairPotential.cu: Shifted-force/virial bug fix to 1.2 release
+    branch
+
+ -- Heine Larsen <heinela@ruc.dk>  Thu, 28 Jun 2012 15:26:18 +0200
+
+rumd (1.2.1) unstable; urgency=low
+
+  * bugfix release
+  * Python/rumdSimulation.py: Bug fix for release 1.2. Re-setting
+    of momentum to zero has been decoupled from the callback
+    mechanism for used-defined output functions, which means it
+    now functions correctly again after restarts. The user-defined
+    callback functions do not, however.
+  * src/Makefile: remove hardcoded -m64 option to allow compiling
+    on i386
+
+ -- Heine Larsen <heinela@ruc.dk>  Tue, 29 May 2012 14:39:49 +0200
+
+rumd (1.2) unstable; urgency=low
+
+  * new release
+
+ -- Heine Larsen <heinela@ruc.dk>  Sun, 15 Jan 2012 13:34:37 +0100
+
+rumd (1.1.1) unstable; urgency=low
+
+  * include/rumd/PairPotential.h: move misplaced Epsilon to nominator in Pot_gLJ_m_n
+
+ -- Heine Larsen <heinela@ruc.dk>  Fri, 16 Dec 2011 11:36:19 +0100
+
+rumd (1.1) unstable; urgency=low
+
+  * new release
+
+ -- Heine Larsen <heinela@ruc.dk>  Tue, 05 Jul 2011 13:26:49 +0200
+
+rumd (1.0) unstable; urgency=low
+
+  * new release
+  * cleanup obsolete manpages and user programs and tests
+
+ -- Heine Larsen <heinela@ruc.dk>  Mon, 16 May 2011 11:34:03 +0200
+
+rumd (0.10.0) unstable; urgency=low
+
+  * new release
+  * support for cuda 3.2.16 and gcc 4.4
+  * new python based interface
+
+ -- Heine Larsen <heinela@ruc.dk>  Wed, 13 Apr 2011 11:53:12 +0200
+
+rumd (0.9.0) unstable; urgency=low
+
+  * initial packaging
+
+ -- Heine Larsen <heinela@ruc.dk>  Fri, 08 Jan 2010 00:38:04 +0100
+

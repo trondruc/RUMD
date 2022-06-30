@@ -1,0 +1,3 @@
+Python/rumd/_rumd.so rumd 3.5-
+Python/rumd/_Tools.so rumd 3.5-
+Python/rumd/*.py rumd 3.5-

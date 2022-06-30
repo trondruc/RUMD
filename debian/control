@@ -1,0 +1,43 @@
+Source: rumd
+Section: science
+Priority: optional
+Maintainer: Heine Larsen <heinela@ruc.dk>
+Build-Depends: debhelper (>= 8), dh-python, g++-10 | c++-compiler, zlib1g-dev, nvidia-cuda-toolkit, python3-dev, python3-numpy, latex2html, libboost1.74-dev | libboost-dev, libboost-iostreams1.74-dev | libboost-iostreams-dev, swig (>=4), libthrust-dev (>=1.7.0), texlive-science
+Standards-Version: 3.9.4
+Homepage: http://rumd.org/
+
+Package: rumd
+Architecture: any
+Depends: ${misc:Depends}, ${shlibs:Depends}, ${python3:Depends}, python3-rumd, python3-numpy
+Breaks: python-rumd (<< 3.5)
+Replaces: python-rumd (<< 3.5)
+Recommends: grace
+Suggests: rumd-doc, vmd, gnuplot, povray
+Description: Roskilde University Molecular Dynamics
+ Framework for simulation and analysis of viscous liquid systems using
+ Molecular Dynamics. The simulations uses CUDA supported devices for the
+ major parts of the computations.
+
+Package: python3-rumd
+Section: python
+Architecture: any
+Depends: ${misc:Depends}, ${shlibs:Depends}, ${python3:Depends}, python3-numpy
+Provides: ${python3:Provides}
+Description: Roskilde University Molecular Dynamics - python3 interface
+ Framework for simulation and analysis of viscous liquid systems using
+ Molecular Dynamics.
+ .
+ This package contains the Python3 interface for simulation control and
+ data analysis
+
+Package: rumd-doc
+Section: doc
+Architecture: all
+Depends: ${misc:Depends}
+Suggests: rumd
+Description: Roskilde University Molecular Dynamics - documentation
+ Framework for simulation and analysis of viscous liquid systems using
+ Molecular Dynamics.
+ .
+ This package contains a tutorial in HTML and PDF format, and the
+ UserManual in PDF format.
