@@ -235,17 +235,13 @@ template <class T, unsigned int blockSize> __global__ void reduce( T* g_idata, T
   if(blockSize >= 256) { if(tid < 128) { sdata[tid] += sdata[tid + 128]; } __syncthreads(); }
   if(blockSize >= 128) { if(tid <  64) { sdata[tid] += sdata[tid +  64]; } __syncthreads(); }
   
-  if(tid < 32){
-    volatile T* localSdata = sdata; // We must declare volatile amongst the 32 warp threads.
-    
-    // Unroll the last warp.
-    if(blockSize >= 64) localSdata[tid] += localSdata[tid + 32]; 
-    if(blockSize >= 32) localSdata[tid] += localSdata[tid + 16]; 
-    if(blockSize >= 16) localSdata[tid] += localSdata[tid +  8]; 
-    if(blockSize >= 8)  localSdata[tid] += localSdata[tid +  4]; 
-    if(blockSize >= 4)  localSdata[tid] += localSdata[tid +  2]; 
-    if(blockSize >= 2)  localSdata[tid] += localSdata[tid +  1]; 
-  }
+  // Unroll the last warp.
+  if(blockSize >= 64) { if(tid < 32) { sdata[tid] += sdata[tid + 32]; } __syncthreads(); }
+  if(blockSize >= 32) { if(tid < 16) { sdata[tid] += sdata[tid + 16]; } __syncthreads(); }
+  if(blockSize >= 16) { if(tid < 8)  { sdata[tid] += sdata[tid +  8]; } __syncthreads(); }
+  if(blockSize >= 8)  { if(tid < 4)  { sdata[tid] += sdata[tid +  4]; } __syncthreads(); }
+  if(blockSize >= 4)  { if(tid < 2)  { sdata[tid] += sdata[tid +  2]; } __syncthreads(); }
+  if(blockSize >= 2)  { if(tid < 1)  { sdata[tid] += sdata[tid +  1]; } __syncthreads(); }
     
   // Write result for this block to global mem 
   if(tid == 0 && blockIdx.x*(blockDim.x*2)*stride < numParticles)
