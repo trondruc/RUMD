@@ -1,4 +1,8 @@
 ------------------------------------------------------------------------
+r1929 | trond | 2022-07-06 16:06:19 +0200 (Wed, 06 Jul 2022) | 1 line
+
+Fixed that the >= Volta architecture introduces Independent Thread Scheduling which the reduction algorithm relied on. Using Thrust in next version
+------------------------------------------------------------------------
 r1928 | heine | 2022-06-22 14:01:11 +0200 (Wed, 22 Jun 2022) | 1 line
 
 update g++ and boost dependencies for Debian 11
