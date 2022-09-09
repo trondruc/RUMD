@@ -1,3 +1,2 @@
 # RUMD
-Roskilde University Molecular Dynamics
-latest checkout - for development only
+Roskilde University Molecular Dynamics (no Test directory). 
